@@ -2,441 +2,669 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0908" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Oppa & Foxy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400;1,500&family=Jost:wght@200;300;400&display=swap" rel="stylesheet" />
 
   <style>
-    /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0e0c0b;
-      --bg2: #161210;
+      --accent:    #c49070;
       --parchment: #f0e8dc;
-      --accent: #c49070;
-      --accent2: #9b6e50;
-      --muted: #6b6058;
-      --border: rgba(196, 144, 112, 0.18);
-      --glow: rgba(196, 144, 112, 0.08);
+      --bg:        #0a0908;
     }
 
-    html, body {
-      height: 100%;
+    html {
+      scroll-behavior: smooth;
       background: var(--bg);
-      color: var(--parchment);
-      font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+    }
+
+    body {
+      width: 100%;
+      background: var(--bg);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      -webkit-tap-highlight-color: transparent;
       overflow-x: hidden;
     }
 
-    /* ── Background atmosphere ── */
-    .bg-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-    }
+    /* ════════════════════════════════════════
+       SECTION 1 — Full-screen sticky slideshow
+    ════════════════════════════════════════ */
 
-    .bg-layer::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(196,144,112,0.07) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 60% at 80% 80%, rgba(155,110,80,0.06) 0%, transparent 70%);
-      animation: breathe 12s ease-in-out infinite alternate;
-    }
-
-    .bg-layer::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
-      background-size: 180px;
-      opacity: 0.04;
-    }
-
-    @keyframes breathe {
-      from { opacity: 0.7; transform: scale(1); }
-      to   { opacity: 1;   transform: scale(1.04); }
-    }
-
-    /* ── Page wrapper ── */
-    .page {
+    .slideshow-section {
       position: relative;
-      z-index: 1;
-      min-height: 100vh;
+      /* Tall enough to give scroll room while sticky */
+      height: 220vh;
+    }
+
+    /* Sticky container that pins the slideshow */
+    .sticky-wrap {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+    }
+
+    /* 9:16 frame */
+    .frame {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #111;
+    }
+
+    @media (min-aspect-ratio: 9/16) {
+      .frame {
+        width: calc(100vh * 9 / 16);
+        height: 100vh;
+      }
+    }
+
+    /* Dim overlay — grows as user scrolls */
+    .dim-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      opacity: 0;
+      z-index: 20;
+      pointer-events: none;
+      transition: opacity 0.05s linear;
+    }
+
+    /* Scroll hint arrow */
+    .scroll-hint {
+      position: absolute;
+      bottom: max(env(safe-area-inset-bottom), 1.5rem);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 3rem 1.5rem 4rem;
-      gap: 0;
+      gap: 0.4rem;
+      animation: hintBob 2s ease-in-out infinite;
+      transition: opacity 0.4s;
     }
 
-    /* ── Names header ── */
-    .names {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(0.55rem, 1.8vw, 0.75rem);
-      font-weight: 300;
-      letter-spacing: 0.55em;
+    .scroll-hint-label {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 0.5rem;
+      letter-spacing: 0.5em;
       text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 2.2rem;
-      opacity: 0;
-      animation: riseIn 1s 0.3s forwards;
+      color: rgba(240,232,220,0.4);
     }
 
-    /* ── Slideshow ── */
-    .slideshow-wrap {
-      position: relative;
-      width: min(420px, 88vw);
-      aspect-ratio: 3 / 4;
-      margin-bottom: 2.8rem;
-      opacity: 0;
-      animation: riseIn 1s 0.6s forwards;
-    }
-
-    /* Decorative frame corners */
-    .slideshow-wrap::before,
-    .slideshow-wrap::after {
-      content: '';
-      position: absolute;
-      width: 28px;
+    .scroll-hint-arrow {
+      width: 1px;
       height: 28px;
-      border-color: var(--accent);
-      border-style: solid;
-      z-index: 3;
-      pointer-events: none;
-      opacity: 0.6;
-    }
-    .slideshow-wrap::before {
-      top: -6px; left: -6px;
-      border-width: 1px 0 0 1px;
-    }
-    .slideshow-wrap::after {
-      bottom: -6px; right: -6px;
-      border-width: 0 1px 1px 0;
+      background: linear-gradient(to bottom, rgba(196,144,112,0.6), transparent);
     }
 
-    /* Extra corners via pseudo on inner div */
-    .frame-corners::before,
-    .frame-corners::after {
-      content: '';
-      position: absolute;
-      width: 28px;
-      height: 28px;
-      border-color: var(--accent);
-      border-style: solid;
-      z-index: 3;
-      pointer-events: none;
-      opacity: 0.6;
-    }
-    .frame-corners::before {
-      top: -6px; right: -6px;
-      border-width: 1px 1px 0 0;
-    }
-    .frame-corners::after {
-      bottom: -6px; left: -6px;
-      border-width: 0 0 1px 1px;
+    @keyframes hintBob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50%       { transform: translateX(-50%) translateY(6px); }
     }
 
-    .slideshow {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
-    /* Each slide */
+    /* ── Slides ── */
     .slide {
       position: absolute;
       inset: 0;
       opacity: 0;
-      transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1);
-      background: var(--bg2);
+      transition: opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .slide.active {
-      opacity: 1;
-    }
+    .slide.active { opacity: 1; }
 
     .slide img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center top;
       display: block;
-      filter: sepia(0.15) contrast(1.05) brightness(0.96);
-      transition: transform 8s ease;
+      transform: scale(1.0);
+      transition: transform 7s ease, opacity 1.4s ease;
     }
 
-    .slide.active img {
-      transform: scale(1.04);
-    }
+    .slide.active img { transform: scale(1.06); }
 
-    /* Slide number indicator */
-    .slide-dots {
-      position: absolute;
-      bottom: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 7px;
-      z-index: 4;
-    }
-
-    .dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: rgba(240, 232, 220, 0.35);
-      transition: background 0.4s, transform 0.4s;
-      cursor: pointer;
-      border: none;
-      padding: 0;
-    }
-
-    .dot.active {
-      background: var(--accent);
-      transform: scale(1.4);
-    }
-
-    /* Photo placeholder (shown when no real image) */
-    .slide-placeholder {
+    /* Placeholder */
+    .placeholder {
       width: 100%;
       height: 100%;
+      background: linear-gradient(160deg, #1c1510 0%, #0e0b09 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      background: linear-gradient(135deg, #1a1512 0%, #221a14 100%);
+      gap: 1rem;
     }
 
-    .placeholder-icon {
-      font-size: 2.5rem;
-      opacity: 0.25;
-    }
-
+    .placeholder-icon  { font-size: 2rem; color: rgba(196,144,112,0.2); }
     .placeholder-label {
       font-family: 'Jost', sans-serif;
       font-weight: 200;
-      font-size: 0.65rem;
-      letter-spacing: 0.35em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    /* ── Message ── */
-    .message-wrap {
-      max-width: 480px;
-      text-align: center;
-      margin-bottom: 3rem;
-      opacity: 0;
-      animation: riseIn 1s 1s forwards;
-    }
-
-    .ornament {
-      font-size: 1.1rem;
-      color: var(--accent);
-      opacity: 0.55;
-      letter-spacing: 0.6em;
-      margin-bottom: 1.6rem;
-      display: block;
-    }
-
-    .message {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(1.05rem, 3vw, 1.3rem);
-      font-weight: 300;
-      font-style: italic;
-      line-height: 1.85;
-      color: var(--parchment);
-      opacity: 0.88;
-    }
-
-    .message em {
-      font-style: normal;
-      color: var(--accent);
-    }
-
-    /* ── Divider ── */
-    .divider {
-      width: 1px;
-      height: 48px;
-      background: linear-gradient(to bottom, transparent, var(--accent), transparent);
-      margin: 0 auto 2.4rem;
-      opacity: 0;
-      animation: fadeIn 1s 1.3s forwards;
-    }
-
-    /* ── Folio link button ── */
-    .folio-link-wrap {
-      opacity: 0;
-      animation: riseIn 1s 1.5s forwards;
-      text-align: center;
-    }
-
-    .folio-eyebrow {
-      font-family: 'Jost', sans-serif;
-      font-weight: 200;
       font-size: 0.6rem;
-      letter-spacing: 0.45em;
+      letter-spacing: 0.5em;
       text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1rem;
+      color: rgba(196,144,112,0.25);
     }
 
-    .folio-btn {
-      display: inline-flex;
+    /* ── Top overlay + header ── */
+    .top-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 180px;
+      background: linear-gradient(to bottom, rgba(10,9,8,0.80) 0%, transparent 100%);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 15;
+      display: flex;
       align-items: center;
-      gap: 0.7rem;
-      font-family: 'Jost', sans-serif;
+      justify-content: space-between;
+      padding: max(env(safe-area-inset-top), 1.2rem) 1.5rem 1rem;
+    }
+
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
       font-weight: 300;
-      font-size: 0.72rem;
-      letter-spacing: 0.35em;
-      text-transform: uppercase;
-      color: var(--accent);
+      letter-spacing: 0.22em;
+      color: var(--parchment);
       text-decoration: none;
-      border: 1px solid var(--border);
-      padding: 0.85rem 2.2rem;
-      position: relative;
-      overflow: hidden;
-      transition: color 0.4s, border-color 0.4s;
+      opacity: 0.9;
     }
 
-    .folio-btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--glow);
-      opacity: 0;
-      transition: opacity 0.4s;
-    }
+    .logo span { color: var(--accent); }
 
-    .folio-btn::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: var(--accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
-
-    .folio-btn:hover { border-color: rgba(196,144,112,0.45); }
-    .folio-btn:hover::before { opacity: 1; }
-    .folio-btn:hover::after { transform: scaleX(1); }
-
-    .folio-btn-arrow {
-      transition: transform 0.3s;
-    }
-    .folio-btn:hover .folio-btn-arrow {
-      transform: translateX(4px);
-    }
-
-    /* ── Footer note ── */
-    .footer-note {
-      margin-top: 3.5rem;
+    .counter {
       font-family: 'Jost', sans-serif;
       font-weight: 200;
       font-size: 0.58rem;
       letter-spacing: 0.4em;
+      color: rgba(240,232,220,0.45);
+    }
+
+    /* ── Progress bar ── */
+    .progress-track {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(240,232,220,0.08);
+      z-index: 30;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width linear;
+    }
+
+    /* ── Bottom gradient + caption ── */
+    .bottom-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 55%;
+      background: linear-gradient(to top,
+        rgba(10,9,8,0.95) 0%,
+        rgba(10,9,8,0.65) 40%,
+        transparent 100%);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .caption-wrap {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 15;
+      padding: 0 1.8rem max(calc(env(safe-area-inset-bottom) + 4rem), 4.5rem);
+    }
+
+    .caption-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 0.5rem;
+      letter-spacing: 0.55em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--accent);
+      margin-bottom: 0.6rem;
       opacity: 0;
-      animation: fadeIn 1.2s 2s forwards;
+      transform: translateY(8px);
+      transition: opacity 0.7s 0.5s ease, transform 0.7s 0.5s ease;
     }
 
-    /* ── Keyframes ── */
-    @keyframes riseIn {
-      from { opacity: 0; transform: translateY(18px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .slide.active .caption-eyebrow { opacity: 1; transform: translateY(0); }
+
+    .caption-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.1rem, 4.5vw, 1.45rem);
+      font-style: italic;
+      font-weight: 300;
+      line-height: 1.55;
+      color: var(--parchment);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.8s 0.7s ease, transform 0.8s 0.7s ease;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
+    .slide.active .caption-text { opacity: 1; transform: translateY(0); }
+
+    /* ── Dots ── */
+    .dots {
+      position: absolute;
+      bottom: max(calc(env(safe-area-inset-bottom) + 2rem), 2.5rem);
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      z-index: 15;
     }
 
-    /* ── Responsive ── */
-    @media (max-width: 480px) {
-      .page { padding: 2.5rem 1.25rem 3rem; }
-      .message { font-size: 1rem; }
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(240,232,220,0.25);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.35s, transform 0.35s;
     }
+
+    .dot.active {
+      background: var(--accent);
+      transform: scale(1.5);
+    }
+
+    /* ── Tap zones ── */
+    .tap-prev, .tap-next {
+      position: absolute;
+      top: 12%; bottom: 22%;
+      width: 30%;
+      z-index: 12;
+      cursor: pointer;
+    }
+
+    .tap-prev { left: 0; }
+    .tap-next  { right: 0; }
+
+    /* ── Film grain ── */
+    .grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 18;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+      background-size: 180px;
+      opacity: 0.035;
+      mix-blend-mode: overlay;
+    }
+
+    /* ════════════════════════════════════════
+       SECTION 2 — Message + Folio link
+    ════════════════════════════════════════ */
+
+    .message-section {
+      position: relative;
+      z-index: 5;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5rem 2rem 5rem;
+      text-align: center;
+    }
+
+    /* Subtle top fade from bg */
+    .message-section::before {
+      content: '';
+      position: absolute;
+      top: -3px; left: 0; right: 0;
+      height: 60px;
+      background: linear-gradient(to bottom, var(--bg), transparent);
+      pointer-events: none;
+    }
+
+    /* Floating orb atmosphere */
+    .message-section::after {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196,144,112,0.06) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .message-inner {
+      position: relative;
+      z-index: 2;
+      max-width: 500px;
+      width: 100%;
+    }
+
+    /* Names */
+    .msg-names {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 0.58rem;
+      letter-spacing: 0.55em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .msg-names.visible { opacity: 1; transform: translateY(0); }
+
+    /* Ornament */
+    .ornament {
+      font-size: 1.2rem;
+      color: var(--accent);
+      opacity: 0.4;
+      letter-spacing: 0.5em;
+      display: block;
+      margin-bottom: 2rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s 0.15s ease, transform 0.8s 0.15s ease;
+    }
+
+    .ornament.visible { opacity: 0.4; transform: translateY(0); }
+
+    /* Message text */
+    .msg-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.15rem, 4vw, 1.45rem);
+      font-style: italic;
+      font-weight: 300;
+      line-height: 1.9;
+      color: var(--parchment);
+      opacity: 0.88;
+      margin-bottom: 3rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.9s 0.3s ease, transform 0.9s 0.3s ease;
+    }
+
+    .msg-text.visible { opacity: 0.88; transform: translateY(0); }
+
+    .msg-text em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    /* Divider line */
+    .msg-divider {
+      width: 1px;
+      height: 50px;
+      background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+      margin: 0 auto 2.5rem;
+      opacity: 0;
+      transition: opacity 0.8s 0.5s ease;
+    }
+
+    .msg-divider.visible { opacity: 1; }
+
+    /* Folio button */
+    .folio-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.8s 0.6s ease, transform 0.8s 0.6s ease;
+    }
+
+    .folio-wrap.visible { opacity: 1; transform: translateY(0); }
+
+    .folio-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 0.5rem;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: rgba(240,232,220,0.28);
+    }
+
+    .folio-btn {
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      font-size: 0.65rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(196,144,112,0.3);
+      padding: 0.7rem 2rem;
+      text-decoration: none;
+      background: transparent;
+      transition: border-color 0.3s, background 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .folio-btn:hover {
+      border-color: rgba(196,144,112,0.7);
+      background: rgba(196,144,112,0.05);
+    }
+
+    .folio-btn-arrow {
+      transition: transform 0.3s;
+    }
+
+    .folio-btn:hover .folio-btn-arrow {
+      transform: translateX(4px);
+    }
+
+    /* Footer */
+    .msg-footer {
+      margin-top: 4rem;
+      font-family: 'Jost', sans-serif;
+      font-weight: 200;
+      font-size: 0.5rem;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: rgba(240,232,220,0.18);
+      opacity: 0;
+      transition: opacity 1s 0.8s ease;
+    }
+
+    .msg-footer.visible { opacity: 1; }
+
+    /* Letterbox bars */
+    .bar {
+      position: fixed;
+      top: 0; bottom: 0;
+      background: var(--bg);
+      z-index: 50;
+    }
+
+    .bar-l { left: 0; }
+    .bar-r { right: 0; }
   </style>
 </head>
 
 <body>
 
-  <div class="bg-layer" aria-hidden="true"></div>
+  <!-- Letterbox bars -->
+  <div class="bar bar-l" id="barL"></div>
+  <div class="bar bar-r" id="barR"></div>
 
-  <main class="page">
+  <!-- ══ SECTION 1: Slideshow ══ -->
+  <section class="slideshow-section">
+    <div class="sticky-wrap">
+      <div class="frame" id="frame">
 
-    <!-- Names -->
-    <p class="names">Oppa &nbsp;·&nbsp; Foxy</p>
+        <!-- Progress bar -->
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
 
-    <!-- Slideshow -->
-    <div class="slideshow-wrap">
-      <div class="frame-corners"></div>
-      <div class="slideshow" id="slideshow" aria-label="Our photos">
+        <!-- Header -->
+        <div class="header">
+          <span class="logo">F<span>o</span>lio</span>
+          <span class="counter" id="counter">1 / 10</span>
+        </div>
+
+        <div class="top-overlay"></div>
 
         <!--
-          ═══════════════════════════════════════════════════════
-          HOW TO ADD YOUR PHOTOS:
-          Replace each src="assets/photo1.jpg" with your image path.
-          Put your 5 photos in an "assets" folder next to this file.
-          Name them photo1.jpg, photo2.jpg ... photo5.jpg
-          ═══════════════════════════════════════════════════════
+        ══════════════════════════════════════════════
+        ADD YOUR PHOTOS:
+        Put photo1.jpg → photo10.jpg in an assets/ folder
+        next to this file. They load automatically.
+        ══════════════════════════════════════════════
         -->
 
         <div class="slide active">
-          <img src="assets/photo1.jpg" alt="Oppa and Foxy — photo 1"
-               onerror="this.parentElement.innerHTML='<div class=\'slide-placeholder\'><span class=\'placeholder-icon\'>✦</span><span class=\'placeholder-label\'>Photo 1</span></div>'" />
+          <img src="assets/photo1.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 1</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"you give yourself away every time — and I don't look away."</div>
+          </div>
         </div>
 
         <div class="slide">
-          <img src="assets/photo2.jpg" alt="Oppa and Foxy — photo 2"
-               onerror="this.parentElement.innerHTML='<div class=\'slide-placeholder\'><span class=\'placeholder-icon\'>✦</span><span class=\'placeholder-label\'>Photo 2</span></div>'" />
+          <img src="assets/photo2.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 2</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"just small things, stacking quietly against me."</div>
+          </div>
         </div>
 
         <div class="slide">
-          <img src="assets/photo3.jpg" alt="Oppa and Foxy — photo 3"
-               onerror="this.parentElement.innerHTML='<div class=\'slide-placeholder\'><span class=\'placeholder-icon\'>✦</span><span class=\'placeholder-label\'>Photo 3</span></div>'" />
+          <img src="assets/photo3.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 3</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"I want to stand between you and anything that's ever tried to break you."</div>
+          </div>
         </div>
 
         <div class="slide">
-          <img src="assets/photo4.jpg" alt="Oppa and Foxy — photo 4"
-               onerror="this.parentElement.innerHTML='<div class=\'slide-placeholder\'><span class=\'placeholder-icon\'>✦</span><span class=\'placeholder-label\'>Photo 4</span></div>'" />
+          <img src="assets/photo4.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 4</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"my lips don't rush yours — they linger, just long enough."</div>
+          </div>
         </div>
 
         <div class="slide">
-          <img src="assets/photo5.jpg" alt="Oppa and Foxy — photo 5"
-               onerror="this.parentElement.innerHTML='<div class=\'slide-placeholder\'><span class=\'placeholder-icon\'>✦</span><span class=\'placeholder-label\'>Photo 5</span></div>'" />
+          <img src="assets/photo5.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 5</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"I miss you more than I let myself admit — it lives in the quiet."</div>
+          </div>
         </div>
 
-        <!-- Dot indicators -->
-        <div class="slide-dots" role="tablist" aria-label="Photo navigation">
-          <button class="dot active" data-index="0" aria-label="Photo 1" role="tab"></button>
-          <button class="dot" data-index="1" aria-label="Photo 2" role="tab"></button>
-          <button class="dot" data-index="2" aria-label="Photo 3" role="tab"></button>
-          <button class="dot" data-index="3" aria-label="Photo 4" role="tab"></button>
-          <button class="dot" data-index="4" aria-label="Photo 5" role="tab"></button>
+        <div class="slide">
+          <img src="assets/photo6.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 6</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"your warmth — now just memory, a ghost that refuses to leave."</div>
+          </div>
         </div>
+
+        <div class="slide">
+          <img src="assets/photo7.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 7</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"I feel everything — and have none of it."</div>
+          </div>
+        </div>
+
+        <div class="slide">
+          <img src="assets/photo8.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 8</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"you fill my thoughts — even when I don't want you to, you're just there."</div>
+          </div>
+        </div>
+
+        <div class="slide">
+          <img src="assets/photo9.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 9</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"you are my default — my mind returns to you, every time."</div>
+          </div>
+        </div>
+
+        <div class="slide">
+          <img src="assets/photo10.jpg" alt="Oppa and Foxy"
+            onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:'<div class=\'placeholder-icon\'>✦</div><div class=\'placeholder-label\'>Photo 10</div>'}))"/>
+          <div class="caption-wrap">
+            <div class="caption-eyebrow">Oppa &amp; Foxy</div>
+            <div class="caption-text">"all I'm trying to do is be honest with you."</div>
+          </div>
+        </div>
+
+        <div class="bottom-overlay"></div>
+
+        <!-- Dots -->
+        <div class="dots" id="dots"></div>
+
+        <!-- Tap zones -->
+        <div class="tap-prev" id="tapPrev"></div>
+        <div class="tap-next" id="tapNext"></div>
+
+        <!-- Scroll hint -->
+        <div class="scroll-hint" id="scrollHint">
+          <div class="scroll-hint-label">scroll</div>
+          <div class="scroll-hint-arrow"></div>
+        </div>
+
+        <!-- Dim overlay (controlled by scroll) -->
+        <div class="dim-overlay" id="dimOverlay"></div>
+
+        <div class="grain"></div>
 
       </div>
     </div>
+  </section>
 
-    <!-- Message -->
-    <div class="message-wrap">
-      <span class="ornament" aria-hidden="true">❧</span>
-      <p class="message">
+  <!-- ══ SECTION 2: Message + Folio ══ -->
+  <section class="message-section">
+    <div class="message-inner">
+
+      <div class="msg-names" id="msgNames">Oppa &amp; Foxy</div>
+
+      <span class="ornament" id="msgOrnament" aria-hidden="true">❧</span>
+
+      <p class="msg-text" id="msgText">
         Paper will yellow and crumble to dust.<br>
         Ink will fade before memory does.<br>
         But what is written in the <em>ether</em> endures —<br>
@@ -445,84 +673,155 @@
         for you, and only you,<br>
         across all the ages yet to come.
       </p>
+
+      <div class="msg-divider" id="msgDivider"></div>
+
+      <div class="folio-wrap" id="folioWrap">
+        <div class="folio-eyebrow">the collection awaits</div>
+        <!--
+          Replace with your actual GitHub Pages URL:
+          https://Ian-Mutinda.github.io/poetry-site/
+        -->
+        <a class="folio-btn"
+           href="https://Ian-Mutinda.github.io/poetry-site/"
+           target="_blank"
+           rel="noopener noreferrer">
+          Enter Folio <span class="folio-btn-arrow">→</span>
+        </a>
+      </div>
+
+      <p class="msg-footer" id="msgFooter">Oppa &amp; Foxy &nbsp;·&nbsp; Always</p>
+
     </div>
-
-    <!-- Divider -->
-    <div class="divider" aria-hidden="true"></div>
-
-    <!-- Folio link -->
-    <div class="folio-link-wrap">
-      <p class="folio-eyebrow">The collection awaits</p>
-      <!--
-        ═══════════════════════════════════════════════════════
-        REPLACE THE href BELOW with your actual GitHub Pages URL
-        e.g. https://Ian-Mutinda.github.io/poetry-site/
-        ═══════════════════════════════════════════════════════
-      -->
-      <a
-        href="https://Ian-Mutinda.github.io/poetry-site/"
-        class="folio-btn"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Enter Folio poetry collection"
-      >
-        Enter Folio <span class="folio-btn-arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
-
-    <!-- Footer -->
-    <p class="footer-note">Oppa &amp; Foxy &nbsp;·&nbsp; Always</p>
-
-  </main>
+  </section>
 
   <script>
-    // ── Slideshow ──────────────────────────────────────────
-    const slides = document.querySelectorAll('.slide');
-    const dots   = document.querySelectorAll('.dot');
-    let current  = 0;
-    let timer;
+    // ── Config ───────────────────────────────────────────
+    const AUTOPLAY_MS = 5000;
+    const TOTAL       = 10;
 
-    function goTo(index) {
-      slides[current].classList.remove('active');
-      dots[current].classList.remove('active');
-      current = (index + slides.length) % slides.length;
-      slides[current].classList.add('active');
-      dots[current].classList.add('active');
-    }
+    // ── Slideshow ────────────────────────────────────────
+    const slides      = document.querySelectorAll('.slide');
+    const dotsWrap    = document.getElementById('dots');
+    const counterEl   = document.getElementById('counter');
+    const fillEl      = document.getElementById('progressFill');
+    let current       = 0;
+    let autoTimer     = null;
 
-    function next() { goTo(current + 1); }
-
-    function startTimer() {
-      timer = setInterval(next, 4500);
-    }
-
-    // Dot click — manual navigation
-    dots.forEach(dot => {
-      dot.addEventListener('click', () => {
-        clearInterval(timer);
-        goTo(parseInt(dot.dataset.index));
-        startTimer();
-      });
+    // Build dots
+    slides.forEach((_, i) => {
+      const d = document.createElement('button');
+      d.className = 'dot' + (i === 0 ? ' active' : '');
+      d.setAttribute('aria-label', `Photo ${i + 1}`);
+      d.addEventListener('click', () => goTo(i, true));
+      dotsWrap.appendChild(d);
     });
 
-    // Touch swipe support for mobile
-    let touchStartX = 0;
-    const ss = document.getElementById('slideshow');
+    const dots = document.querySelectorAll('.dot');
 
-    ss.addEventListener('touchstart', e => {
-      touchStartX = e.touches[0].clientX;
+    function goTo(index, reset = false) {
+      slides[current].classList.remove('active');
+      dots[current].classList.remove('active');
+      current = (index + TOTAL) % TOTAL;
+      slides[current].classList.add('active');
+      dots[current].classList.add('active');
+      counterEl.textContent = `${current + 1} / ${TOTAL}`;
+      if (reset) { clearInterval(autoTimer); startAutoplay(); }
+      startProgress();
+    }
+
+    function startAutoplay() {
+      clearInterval(autoTimer);
+      autoTimer = setInterval(() => goTo(current + 1), AUTOPLAY_MS);
+    }
+
+    function startProgress() {
+      fillEl.style.transition = 'none';
+      fillEl.style.width = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fillEl.style.transition = `width ${AUTOPLAY_MS}ms linear`;
+        fillEl.style.width = '100%';
+      }));
+    }
+
+    // Touch swipe
+    let tx = 0, ty = 0;
+    const frame = document.getElementById('frame');
+
+    frame.addEventListener('touchstart', e => {
+      tx = e.touches[0].clientX;
+      ty = e.touches[0].clientY;
     }, { passive: true });
 
-    ss.addEventListener('touchend', e => {
-      const diff = touchStartX - e.changedTouches[0].clientX;
-      if (Math.abs(diff) > 40) {
-        clearInterval(timer);
-        goTo(diff > 0 ? current + 1 : current - 1);
-        startTimer();
+    frame.addEventListener('touchend', e => {
+      const dx = tx - e.changedTouches[0].clientX;
+      const dy = Math.abs(ty - e.changedTouches[0].clientY);
+      if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
+        dx > 0 ? goTo(current + 1, true) : goTo(current - 1, true);
       }
     }, { passive: true });
 
-    startTimer();
+    document.getElementById('tapNext').addEventListener('click', () => goTo(current + 1, true));
+    document.getElementById('tapPrev').addEventListener('click', () => goTo(current - 1, true));
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') goTo(current + 1, true);
+      if (e.key === 'ArrowLeft')  goTo(current - 1, true);
+    });
+
+    // ── Letterbox ────────────────────────────────────────
+    function sizeLetterbox() {
+      const fw = Math.min(window.innerWidth, window.innerHeight * 9 / 16);
+      const bw = Math.max(0, (window.innerWidth - fw) / 2);
+      document.getElementById('barL').style.width = bw + 'px';
+      document.getElementById('barR').style.width = bw + 'px';
+    }
+
+    window.addEventListener('resize', sizeLetterbox);
+    sizeLetterbox();
+
+    // ── Scroll — dim + reveal ────────────────────────────
+    const dimEl      = document.getElementById('dimOverlay');
+    const hintEl     = document.getElementById('scrollHint');
+    const msgEls     = [
+      document.getElementById('msgNames'),
+      document.getElementById('msgOrnament'),
+      document.getElementById('msgText'),
+      document.getElementById('msgDivider'),
+      document.getElementById('folioWrap'),
+      document.getElementById('msgFooter'),
+    ];
+
+    // IntersectionObserver for message section fade-ins
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    msgEls.forEach(el => { if (el) observer.observe(el); });
+
+    // Scroll listener for dim effect
+    window.addEventListener('scroll', () => {
+      const vh = window.innerHeight;
+      const scrollY = window.scrollY;
+
+      // Dim starts at 20% scroll through the sticky section, fully dim at 80%
+      const start = vh * 0.2;
+      const end   = vh * 0.8;
+      const progress = Math.min(1, Math.max(0, (scrollY - start) / (end - start)));
+
+      dimEl.style.opacity = progress * 0.92;
+
+      // Hide scroll hint once user starts scrolling
+      hintEl.style.opacity = scrollY > 30 ? '0' : '1';
+    }, { passive: true });
+
+    // ── Init ─────────────────────────────────────────────
+    startAutoplay();
+    startProgress();
   </script>
 
 </body>
