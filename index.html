@@ -497,6 +497,35 @@
 
     .msg-footer.visible { opacity: 1; }
 
+    /* ── Audio button ── */
+    .audio-btn {
+      position: fixed;
+      top: max(env(safe-area-inset-top), 1.2rem);
+      right: 1.2rem;
+      z-index: 100;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(196,144,112,0.35);
+      background: rgba(10,9,8,0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--accent);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .audio-btn:hover {
+      border-color: rgba(196,144,112,0.7);
+      background: rgba(196,144,112,0.1);
+    }
+
+    .audio-btn.playing { border-color: var(--accent); }
+
     /* Letterbox bars */
     .bar {
       position: fixed;
@@ -515,6 +544,23 @@
   <!-- Letterbox bars -->
   <div class="bar bar-l" id="barL"></div>
   <div class="bar bar-r" id="barR"></div>
+
+  <!--
+    ══════════════════════════════════════════════
+    AUDIO — HOW TO ADD YOUR SONG:
+    1. Download your MP3 and rename it: song1.mp3
+    2. Drop it into your assets/ folder
+    3. Done — it plays automatically on load
+    ══════════════════════════════════════════════
+  -->
+  <audio id="bgAudio" loop preload="auto">
+    <source src="assets/song1.mp3" type="audio/mpeg" />
+  </audio>
+
+  <!-- Mute / unmute button -->
+  <button class="audio-btn" id="audioBtn" aria-label="Toggle music" title="Toggle music">
+    <span id="audioIcon">♪</span>
+  </button>
 
   <!-- ══ SECTION 1: Slideshow ══ -->
   <section class="slideshow-section">
@@ -822,6 +868,67 @@
     // ── Init ─────────────────────────────────────────────
     startAutoplay();
     startProgress();
+
+    // ── Audio ─────────────────────────────────────────────
+    const audio    = document.getElementById('bgAudio');
+    const audioBtn = document.getElementById('audioBtn');
+    const audioIcon = document.getElementById('audioIcon');
+    let isPlaying  = false;
+
+    function tryPlay() {
+      audio.volume = 0;
+      const promise = audio.play();
+      if (promise !== undefined) {
+        promise.then(() => {
+          // Fade in volume smoothly
+          isPlaying = true;
+          audioBtn.classList.add('playing');
+          audioIcon.textContent = '♫';
+          fadeVolume(0, 0.5, 3000);
+        }).catch(() => {
+          // Autoplay blocked — wait for first tap
+          document.addEventListener('click', () => {
+            if (!isPlaying) tryPlay();
+          }, { once: true });
+          document.addEventListener('touchstart', () => {
+            if (!isPlaying) tryPlay();
+          }, { once: true });
+        });
+      }
+    }
+
+    function fadeVolume(from, to, duration) {
+      const steps    = 40;
+      const interval = duration / steps;
+      const delta    = (to - from) / steps;
+      let   vol      = from;
+      const t = setInterval(() => {
+        vol = Math.min(1, Math.max(0, vol + delta));
+        audio.volume = vol;
+        if ((delta > 0 && vol >= to) || (delta < 0 && vol <= to)) {
+          clearInterval(t);
+          if (vol <= 0) { audio.pause(); isPlaying = false; }
+        }
+      }, interval);
+    }
+
+    audioBtn.addEventListener('click', () => {
+      if (isPlaying) {
+        fadeVolume(audio.volume, 0, 1500);
+        audioBtn.classList.remove('playing');
+        audioIcon.textContent = '♪';
+        isPlaying = false;
+      } else {
+        audio.play();
+        fadeVolume(0, 0.5, 2000);
+        audioBtn.classList.add('playing');
+        audioIcon.textContent = '♫';
+        isPlaying = true;
+      }
+    });
+
+    // Try autoplay on load
+    window.addEventListener('load', tryPlay);
   </script>
 
 </body>
